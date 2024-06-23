@@ -2,6 +2,8 @@ use clap::Parser;
 use scraper::{Html, Selector};
 use serde_json::json;
 use thiserror::Error;
+use log::{info, warn, error, debug};
+use env_logger::{Env, Builder};
 
 #[derive(Error, Debug)]
 pub enum GistError {
@@ -21,7 +23,6 @@ pub enum GistError {
     IoError(#[from] std::io::Error),
 }
 
-// Define a Result type alias for convenience
 type Result<T> = std::result::Result<T, GistError>;
 
 #[derive(Parser, Debug)]
@@ -36,6 +37,10 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    Builder::from_env(Env::default().default_filter_or("info")).init();
+
+    info!("Application started");
+    debug!("Parsing command line arguments");
     let args = Args::parse();
 
     let abstract_text = fetch_abstract(&args.url).await?;
@@ -53,6 +58,8 @@ async fn main() -> Result<()> {
 }
 
 async fn fetch_abstract(url: &str) -> Result<String> {
+    debug!("Fetching abstract from URL: {}", url);
+
     let response = reqwest::get(url).await?.text().await?;
     let document = Html::parse_document(&response);
 
@@ -67,6 +74,7 @@ async fn fetch_abstract(url: &str) -> Result<String> {
 
     let cleaned_text = clean_text(&raw_text);
 
+    info!("Successfully fetched and parsed abstract from {}", url);
     Ok(cleaned_text
         .trim_start_matches(|c: char| "abstract".contains(c.to_ascii_lowercase()))
         .trim()
@@ -78,6 +86,7 @@ fn clean_text(text: &str) -> String {
 }
 
 async fn summarize_abstract(abstract_text: &str) -> Result<String> {
+    debug!("Summarizing abstract of length: {}", abstract_text.len());
     let client = reqwest::Client::new();
     let response = client
         .post("https://aeronjl-gist.web.val.run")
@@ -95,4 +104,35 @@ async fn summarize_abstract(abstract_text: &str) -> Result<String> {
         .map(|s| s.to_string())
 }
 
-// ... rest of your code (tests, etc.) ...
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clean_text() {
+        let input = "This   is  a   test   string  with   extra   spaces";
+        let expected = "This is a test string with extra spaces";
+        assert_eq!(clean_text(input), expected);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_abstract() {
+        // This test requires network access and might be flaky
+        let url = "https://pubmed.ncbi.nlm.nih.gov/21150120/";
+        let result = fetch_abstract(url).await;
+        assert!(result.is_ok());
+        let abstract_text = result.unwrap();
+        assert!(abstract_text.contains("peroxisome proliferator-activated receptor signaling"));
+    }
+
+    #[tokio::test]
+    async fn test_summarize_abstract() {
+        let abstract_text =
+            "This is a test abstract. It contains multiple sentences. The content is not real.";
+        let result = summarize_abstract(abstract_text).await;
+        assert!(result.is_ok());
+        let summary = result.unwrap();
+        assert!(!summary.is_empty());
+        assert!(summary.len() < abstract_text.len());
+    }
+}
