@@ -52,7 +52,7 @@ fn clean_text(text: &str) -> String {
 async fn summarize_abstract(abstract_text: &str) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let response = client
-        .post("https://aeronjl-moccasinbutterfly.web.val.run")
+        .post("https://aeronjl-gist.web.val.run")
         .json(&json!({
             "text": abstract_text
         }))
