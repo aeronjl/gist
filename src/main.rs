@@ -42,18 +42,37 @@ async fn main() -> Result<()> {
     info!("Application started");
     debug!("Parsing command line arguments");
     let args = Args::parse();
+    info!("URL: {}, Short mode: {}", args.url, args.short);
 
-    let abstract_text = fetch_abstract(&args.url).await?;
-
-    if args.short {
-        let summary = summarize_abstract(&abstract_text).await?;
-        println!("Summary:");
-        println!("{}", summary);
-    } else {
-        println!("Full Abstract:");
-        println!("{}", abstract_text);
+    match fetch_abstract(&args.url).await {
+        Ok(abstract_text) => {
+            info!("Successfully fetched abstract, length: {} characters", abstract_text.len());
+            if args.short {
+                debug!("Summarizing abstract");
+                match summarize_abstract(&abstract_text).await {
+                    Ok(summary) => {
+                        info!("Successfully generated summary, length: {} characters", summary.len());
+                        println!("Summary:");
+                        println!("{}", summary);
+                    }
+                    Err(e) => {
+                        error!("Failed to summarize abstract: {}", e);
+                        return Err(e);
+                    }
+                }
+            } else {
+                info!("Displaying full abstract");
+                println!("Full Abstract:");
+                println!("{}", abstract_text);
+            }
+        }
+        Err(e) => {
+            error!("Failed to fetch abstract: {}", e);
+            return Err(e);
+        }
     }
 
+    info!("Application completed successfully");
     Ok(())
 }
 
