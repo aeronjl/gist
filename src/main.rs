@@ -1,5 +1,4 @@
 use clap::Parser;
-use reqwest;
 use scraper::{Html, Selector};
 use serde_json::json;
 
