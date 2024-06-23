@@ -17,15 +17,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     let abstract_text = fetch_abstract(&args.url).await?;
-    let clean_abstract = clean_text(&abstract_text);
 
     if args.short {
-        let summary = summarize_abstract(&clean_abstract).await?;
+        let summary = summarize_abstract(&abstract_text).await?;
         println!("Summary:");
         println!("{}", summary);
     } else {
         println!("Full Abstract:");
-        println!("{}", clean_abstract);
+        println!("{}", abstract_text);
     }
 
     Ok(())
@@ -40,8 +39,11 @@ async fn fetch_abstract(url: &str) -> Result<String, Box<dyn std::error::Error>>
 
     let raw_text = abstract_div.text().collect::<Vec<_>>().join(" ");
     
-    // Remove the word "Abstract" from the beginning if it exists
-    Ok(raw_text.trim_start_matches("Abstract").trim().to_string())
+    // First, clean the whitespace
+    let cleaned_text = clean_text(&raw_text);
+    
+    // Then, remove the word "Abstract" if it's at the beginning
+    Ok(cleaned_text.trim_start_matches(|c: char| "abstract".contains(c.to_ascii_lowercase())).trim().to_string())
 }
 
 fn clean_text(text: &str) -> String {
@@ -49,8 +51,5 @@ fn clean_text(text: &str) -> String {
 }
 
 async fn summarize_abstract(abstract_text: &str) -> Result<String, Box<dyn std::error::Error>> {
-    // This is a placeholder for the API call.
-    // In a real implementation, you would send the abstract to an API and get the summary.
-    // For demonstration, we'll just return a shortened version of the abstract.
     Ok(abstract_text.chars().take(100).collect::<String>() + "...")
 }
