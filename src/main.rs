@@ -151,26 +151,61 @@ async fn fetch_abstract(url: &str) -> Result<String> {
 }
 
 fn clean_text(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
+    debug!("Cleaning text of length: {} characters", text.len());
+    let cleaned = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    debug!("Text cleaned, new length: {} characters", cleaned.len());
+    cleaned
 }
 
 async fn summarize_abstract(abstract_text: &str) -> Result<String> {
-    debug!("Summarizing abstract of length: {}", abstract_text.len());
+    debug!(
+        "Summarizing abstract of length: {} characters",
+        abstract_text.len()
+    );
     let client = reqwest::Client::new();
-    let response = client
+
+    let response = match client
         .post("https://aeronjl-gist.web.val.run")
         .json(&json!({
             "text": abstract_text
         }))
         .send()
-        .await?;
+        .await
+    {
+        Ok(resp) => {
+            info!("Successfully sent request to summarization API");
+            resp
+        }
+        Err(e) => {
+            error!("Failed to send request to summarization API: {}", e);
+            return Err(GistError::FetchError(e));
+        }
+    };
 
-    let response_json: serde_json::Value = response.json().await?;
+    let response_json: serde_json::Value = match response.json().await {
+        Ok(json) => json,
+        Err(e) => {
+            error!(
+                "Failed to parse JSON response from summarization API: {}",
+                e
+            );
+            return Err(GistError::FetchError(e));
+        }
+    };
 
-    response_json["summary"]
-        .as_str()
-        .ok_or(GistError::SummaryNotFound)
-        .map(|s| s.to_string())
+    match response_json["summary"].as_str() {
+        Some(summary) => {
+            info!(
+                "Successfully generated summary, length: {} characters",
+                summary.len()
+            );
+            Ok(summary.to_string())
+        }
+        None => {
+            warn!("Summary not found in API response");
+            Err(GistError::SummaryNotFound)
+        }
+    }
 }
 
 #[cfg(test)]
