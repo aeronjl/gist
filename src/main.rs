@@ -66,3 +66,35 @@ async fn summarize_abstract(abstract_text: &str) -> Result<String, Box<dyn std::
         .ok_or_else(|| Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Summary not found in response")) as Box<dyn std::error::Error>)
         .map(|s| s.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clean_text() {
+        let input = "This   is  a   test   string  with   extra   spaces";
+        let expected = "This is a test string with extra spaces";
+        assert_eq!(clean_text(input), expected);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_abstract() {
+        // This test requires network access and might be flaky
+        let url = "https://pubmed.ncbi.nlm.nih.gov/21150120/";
+        let result = fetch_abstract(url).await;
+        assert!(result.is_ok());
+        let abstract_text = result.unwrap();
+        assert!(abstract_text.contains("mesenchymal stem cell"));
+    }
+
+    #[tokio::test]
+    async fn test_summarize_abstract() {
+        let abstract_text = "This is a test abstract. It contains multiple sentences. The content is not real.";
+        let result = summarize_abstract(abstract_text).await;
+        assert!(result.is_ok());
+        let summary = result.unwrap();
+        assert!(!summary.is_empty());
+        assert!(summary.len() < abstract_text.len());
+    }
+}
