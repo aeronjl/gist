@@ -1,6 +1,7 @@
 use clap::Parser;
 use reqwest;
 use scraper::{Html, Selector};
+use serde_json::json;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -39,10 +40,8 @@ async fn fetch_abstract(url: &str) -> Result<String, Box<dyn std::error::Error>>
 
     let raw_text = abstract_div.text().collect::<Vec<_>>().join(" ");
     
-    // First, clean the whitespace
     let cleaned_text = clean_text(&raw_text);
     
-    // Then, remove the word "Abstract" if it's at the beginning
     Ok(cleaned_text.trim_start_matches(|c: char| "abstract".contains(c.to_ascii_lowercase())).trim().to_string())
 }
 
@@ -51,5 +50,19 @@ fn clean_text(text: &str) -> String {
 }
 
 async fn summarize_abstract(abstract_text: &str) -> Result<String, Box<dyn std::error::Error>> {
-    Ok(abstract_text.chars().take(100).collect::<String>() + "...")
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://aeronjl-moccasinbutterfly.web.val.run")
+        .json(&json!({
+            "text": abstract_text
+        }))
+        .send()
+        .await?;
+
+    let response_json: serde_json::Value = response.json().await?;
+    
+    response_json["summary"]
+        .as_str()
+        .ok_or_else(|| Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Summary not found in response")) as Box<dyn std::error::Error>)
+        .map(|s| s.to_string())
 }
