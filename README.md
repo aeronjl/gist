@@ -1,5 +1,7 @@
 # gist - Abstract Retrieval and Summarization CLI
 
+![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)
+
 `gist` is a command-line interface (CLI) tool built in Rust that fetches and summarizes academic abstracts. It's designed primarily for use with PubMed abstracts and should be considered experimental for other sources.
 
 ## Features
