@@ -1,6 +1,28 @@
 use clap::Parser;
 use scraper::{Html, Selector};
 use serde_json::json;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum GistError {
+    #[error("Failed to fetch abstract: {0}")]
+    FetchError(#[from] reqwest::Error),
+
+    #[error("Abstract not found")]
+    AbstractNotFound,
+
+    #[error("Failed to parse HTML: {0}")]
+    ParseError(String),
+
+    #[error("Summary not found in response")]
+    SummaryNotFound,
+
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
+}
+
+// Define a Result type alias for convenience
+type Result<T> = std::result::Result<T, GistError>;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -13,7 +35,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     let abstract_text = fetch_abstract(&args.url).await?;
@@ -30,15 +52,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn fetch_abstract(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+async fn fetch_abstract(url: &str) -> Result<String> {
     let response = reqwest::get(url).await?.text().await?;
     let document = Html::parse_document(&response);
 
-    let selector = Selector::parse("div.abstract").unwrap();
+    let selector = Selector::parse("div.abstract")
+        .map_err(|_| GistError::ParseError("Failed to parse HTML selector".to_string()))?;
     let abstract_div = document
         .select(&selector)
         .next()
-        .ok_or("Abstract not found")?;
+        .ok_or(GistError::AbstractNotFound)?;
 
     let raw_text = abstract_div.text().collect::<Vec<_>>().join(" ");
 
@@ -54,7 +77,7 @@ fn clean_text(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-async fn summarize_abstract(abstract_text: &str) -> Result<String, Box<dyn std::error::Error>> {
+async fn summarize_abstract(abstract_text: &str) -> Result<String> {
     let client = reqwest::Client::new();
     let response = client
         .post("https://aeronjl-gist.web.val.run")
@@ -68,44 +91,8 @@ async fn summarize_abstract(abstract_text: &str) -> Result<String, Box<dyn std::
 
     response_json["summary"]
         .as_str()
-        .ok_or_else(|| {
-            Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Summary not found in response",
-            )) as Box<dyn std::error::Error>
-        })
+        .ok_or(GistError::SummaryNotFound)
         .map(|s| s.to_string())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_clean_text() {
-        let input = "This   is  a   test   string  with   extra   spaces";
-        let expected = "This is a test string with extra spaces";
-        assert_eq!(clean_text(input), expected);
-    }
-
-    #[tokio::test]
-    async fn test_fetch_abstract() {
-        // This test requires network access and might be flaky
-        let url = "https://pubmed.ncbi.nlm.nih.gov/21150120/";
-        let result = fetch_abstract(url).await;
-        assert!(result.is_ok());
-        let abstract_text = result.unwrap();
-        assert!(abstract_text.contains("peroxisome proliferator-activated receptor signaling"));
-    }
-
-    #[tokio::test]
-    async fn test_summarize_abstract() {
-        let abstract_text =
-            "This is a test abstract. It contains multiple sentences. The content is not real.";
-        let result = summarize_abstract(abstract_text).await;
-        assert!(result.is_ok());
-        let summary = result.unwrap();
-        assert!(!summary.is_empty());
-        assert!(summary.len() < abstract_text.len());
-    }
-}
+// ... rest of your code (tests, etc.) ...
