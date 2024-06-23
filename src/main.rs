@@ -9,7 +9,7 @@ struct Args {
     url: String,
 
     #[arg(short, long)]
-    verbose: bool,
+    short: bool,
 }
 
 #[tokio::main]
@@ -17,14 +17,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     let abstract_text = fetch_abstract(&args.url).await?;
+    let clean_abstract = clean_text(&abstract_text);
 
-    if args.verbose {
-        println!("Full Abstract:");
-        println!("{}", abstract_text);
-    } else {
-        let summary = summarize_abstract(&abstract_text).await?;
+    if args.short {
+        let summary = summarize_abstract(&clean_abstract).await?;
         println!("Summary:");
         println!("{}", summary);
+    } else {
+        println!("Full Abstract:");
+        println!("{}", clean_abstract);
     }
 
     Ok(())
@@ -37,7 +38,14 @@ async fn fetch_abstract(url: &str) -> Result<String, Box<dyn std::error::Error>>
     let selector = Selector::parse("div.abstract").unwrap();
     let abstract_div = document.select(&selector).next().ok_or("Abstract not found")?;
 
-    Ok(abstract_div.text().collect::<Vec<_>>().join(" "))
+    let raw_text = abstract_div.text().collect::<Vec<_>>().join(" ");
+    
+    // Remove the word "Abstract" from the beginning if it exists
+    Ok(raw_text.trim_start_matches("Abstract").trim().to_string())
+}
+
+fn clean_text(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 async fn summarize_abstract(abstract_text: &str) -> Result<String, Box<dyn std::error::Error>> {
