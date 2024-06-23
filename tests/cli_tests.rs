@@ -7,10 +7,10 @@ fn test_cli_fetch_abstract() {
         .arg("--url")
         .arg("https://pubmed.ncbi.nlm.nih.gov/21150120/")
         .assert();
-    
-    assert
-        .success()
-        .stdout(predicates::str::contains("peroxisome proliferator-activated receptor signaling"));
+
+    assert.success().stdout(predicates::str::contains(
+        "peroxisome proliferator-activated receptor signaling",
+    ));
 }
 
 #[test]
@@ -21,7 +21,7 @@ fn test_cli_summarize_abstract() {
         .arg("https://pubmed.ncbi.nlm.nih.gov/21150120/")
         .arg("--short")
         .assert();
-    
+
     assert
         .success()
         .stdout(predicates::str::contains("Summary:"));

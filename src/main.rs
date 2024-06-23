@@ -41,12 +41,11 @@ async fn fetch_abstract(url: &str) -> Result<String, Box<dyn std::error::Error>>
         .ok_or("Abstract not found")?;
 
     let raw_text = abstract_div.text().collect::<Vec<_>>().join(" ");
-    
+
     let cleaned_text = clean_text(&raw_text);
-    
+
     Ok(cleaned_text
-        .trim_start_matches(|c: char| "abstract"
-        .contains(c.to_ascii_lowercase()))
+        .trim_start_matches(|c: char| "abstract".contains(c.to_ascii_lowercase()))
         .trim()
         .to_string())
 }
@@ -66,17 +65,17 @@ async fn summarize_abstract(abstract_text: &str) -> Result<String, Box<dyn std::
         .await?;
 
     let response_json: serde_json::Value = response.json().await?;
-    
+
     response_json["summary"]
         .as_str()
         .ok_or_else(|| {
             Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                "Summary not found in response"
+                "Summary not found in response",
             )) as Box<dyn std::error::Error>
         })
         .map(|s| s.to_string())
-    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -101,7 +100,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_summarize_abstract() {
-        let abstract_text = 
+        let abstract_text =
             "This is a test abstract. It contains multiple sentences. The content is not real.";
         let result = summarize_abstract(abstract_text).await;
         assert!(result.is_ok());
