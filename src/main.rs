@@ -85,7 +85,7 @@ mod tests {
         let result = fetch_abstract(url).await;
         assert!(result.is_ok());
         let abstract_text = result.unwrap();
-        assert!(abstract_text.contains("mesenchymal stem cell"));
+        assert!(abstract_text.contains("peroxisome proliferator-activated receptor signaling"));
     }
 
     #[tokio::test]
