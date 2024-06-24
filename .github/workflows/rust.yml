@@ -2,9 +2,9 @@ name: Rust CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,41 +19,41 @@ jobs:
         rust: [stable, beta, nightly]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Rust ${{ matrix.rust }}
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: ${{ matrix.rust }}
-        override: true
+      - name: Install Rust ${{ matrix.rust }}
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
 
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo
-          target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Build
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --verbose
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose
 
-    - name: Run tests (excluding ignored)
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --verbose
+      - name: Run tests (excluding ignored)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose
 
-    - name: Run ignored tests
-      if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --verbose -- --ignored
+      - name: Run ignored tests
+        if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose -- --ignored
 
   clippy:
     name: Clippy
